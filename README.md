@@ -159,8 +159,8 @@ TDOUT/
 
 - **💥 TD FILTER 驱动卸载：** 删除 `TDFileFilter` / `TDNetFilter` 驱动，终止 `MasterHelper.exe`，执行 `netsh winsock reset`
 - **🧹 STUDENTMAIN 进程清理：** 强制终止 `StudentMain.exe` — <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd> + <kbd>K</kbd>（后台可用）
-- **=] 部署与运行：** 释放并运行 `Window2Clear_v0.2.0.exe`
-- **✨ 高调模式：** 启动 5 个 `cmd.exe` 并运行 `dir /s`
+- **=] 部署与运行：** 已经废弃的功能
+- **✨ 高调模式：** 启动 5 个 `cmd.exe` 并运行 `dir /s` 直接感受低调的黑科
 
 ### DLL 注入（窗口隐藏 / 显示）
 
@@ -244,7 +244,7 @@ Python 跨平台桌面应用，基于 TCP 实现同一局域网内 P2P 实时聊
 
 ## 十二、多线程下载器
 
-<kbd>F7</kbd> 弹出（v2.14 新增）— 自定义线程数，比 IDM 还快。
+<kbd>F7</kbd> 弹出（v2.14 新增）— 自定义线程数，某些情况下比 IDM 还快。
 
 ---
 <div align="center">
