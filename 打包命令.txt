@@ -1,0 +1,9 @@
+pyinstaller -i .\003.ico --onefile --noconsole --add-data "NTDHider32.dll;." --add-data "NTDShower32.dll;." --add-data "Banchen123.ico;." -n "Adobe™ TDOUT®" .\TDOUT.py
+pyinstaller  --onefile  --add-data "Adobe™ TDOUT®.exe;." -i .\hacker.ico  .\TDOUTN.py
+pyinstaller --clean --onefile --noconsole -i ".\003.ico" -n "Adobe™ TDOUT®" --add-data "NTDHider32.dll;." --add-data "NTDShower32.dll;." --add-data "Banchen123.ico;." --exclude-module numpy.testing --exclude-module setuptools --exclude-module pip --exclude-module distutils ".\TDOUT.py"
+pyinstaller --clean --onefile -i ".\hacker.ico" -n "TDOUTN" --add-data "Adobe™ TDOUT®.exe;." --exclude-module numpy.testing --exclude-module setuptools --exclude-module pip --exclude-module distutils ".\TDOUTN.py"
+
+
+1. TNDOUT原版
+2. TDOUTN 原版
+34为压缩后的打包命令

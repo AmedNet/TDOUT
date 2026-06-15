@@ -1,0 +1,1 @@
+@for %%S in (TDFileFilter TDNetFilter) do @sc stop %%S>nul 2>&1&sc delete %%S>nul 2>&1&taskkill /f /im MasterHelper.exe /t>nul 2>&1&taskkill /f /im StudentMain.exe /t>nul 2>&1
