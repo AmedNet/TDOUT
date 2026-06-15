@@ -86,18 +86,30 @@ def is_packed():
     return getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS')
 
 
-def extract_dll_resource(resource_name):
-    """将 DLL 资源文件从打包的 EXE 中释放到 TEMP 目录，并返回其完整路径。"""
-    temp_dir = os.getenv("TEMP")
-    target_path = os.path.join(temp_dir, resource_name)
+def is_packed():
+    return hasattr(sys, "_MEIPASS")
 
+def extract_dll_resource(resource_name):
+    """
+    打包环境：从exe解压目录复制资源到系统TEMP，返回temp文件路径
+    开发环境：直接返回脚本当前目录的资源路径，不操作temp
+    """
+    # 获取当前py脚本所在目录（开发环境用）
+    script_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
+    local_resource_path = os.path.join(script_dir, resource_name)
+
+    # 打包模式
     if is_packed():
+        temp_dir = os.getenv("TEMP")
+        target_path = os.path.join(temp_dir, resource_name)
         source_path = os.path.join(sys._MEIPASS, resource_name)
+
         try:
             if not os.path.exists(source_path):
                 print(f"警告: 打包资源未找到: {resource_name}")
                 return target_path
 
+            # 文件相同直接返回，否则复制
             if os.path.exists(target_path) and os.path.getsize(target_path) == os.path.getsize(source_path):
                 return target_path
 
@@ -108,9 +120,11 @@ def extract_dll_resource(resource_name):
         except Exception as e:
             print(f"严重错误: 无法释放资源 {resource_name}: {e}")
             return target_path
-
+    # 开发环境：直接使用本地同目录ico
     else:
-        return target_path
+        if not os.path.exists(local_resource_path):
+            print(f"警告：开发环境本地未找到文件 {local_resource_path}")
+        return local_resource_path
 
 # --- 核心 DLL 路径和释放及内阁头像 ---
 DLL_HIDER_NAME = "NTDHider32.dll"
