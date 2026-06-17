@@ -111,6 +111,7 @@ TDOUT/
 | <kbd>Alt</kbd> + <kbd>N</kbd> | 隐藏 / 还原（后台有效） |
 | <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd> + <kbd>K</kbd> | 杀死极域进程（后台有效） |
 | <kbd>Shift</kbd> + <kbd>Alt</kbd> + <kbd>S</kbd> | 隐藏当前活动窗口（后台有效） |
+| <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>h</kbd> | 黑客工具 |
 | <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>F1</kbd> | 打开帮助窗口 |
 | <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>F2</kbd> | 多功能工具箱 |
 | <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>F3</kbd> | 局域网通讯工具 |
@@ -119,7 +120,8 @@ TDOUT/
 | <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>F6</kbd> | 进程冻结管理器 |
 | <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>F7</kbd> | 多线程下载器 |
 
-**注意：** 不要重复启动程序（后台运行中再次打开可能导致局域网聊天异常）；快捷键失效请检查**大写锁定**。
+> **注意：** 不要重复启动程序（后台运行中再次打开可能导致局域网聊天异常）,退出程序后检查托盘判断是否在后台运行;如果快捷键失效请检查**大写锁定**。
+本软件已内置全屏解控`每五秒检测一次`,但存在问题,解开后键盘失效`目前尚未解决`
 
 ---
 
@@ -157,7 +159,7 @@ TDOUT/
 
 ### 核心驱动和进程清理
 
-- **💥 TD FILTER 驱动卸载：** 删除 `TDFileFilter` / `TDNetFilter` 驱动，终止 `MasterHelper.exe`，执行 `netsh winsock reset`
+- **💥 TD FILTER 驱动卸载：** 解网解U盘
 - **🧹 STUDENTMAIN 进程清理：** 强制终止 `StudentMain.exe` — <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd> + <kbd>K</kbd>（后台可用）
 - **=] 部署与运行：** 已经废弃的功能
 - **✨ 高调模式：** 启动 5 个 `cmd.exe` 并运行 `dir /s` 直接感受低调的黑科
@@ -200,13 +202,13 @@ TDOUT/
 
 ## 七、多功能页面
 
-<kbd>F2</kbd> 弹出（v2.5 新增）。
+ <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>F2</kbd> 弹出（v2.5 新增）。
 
 ---
 
 ## 八、局域网互传与聊天工具
 
-<kbd>F3</kbd> 弹出（窗口显示不完整时可手动拉大，v2.7 新增）。
+ <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>F3</kbd> 弹出（窗口显示不完整时可手动拉大，v2.7 新增）。
 
 Python 跨平台桌面应用，基于 TCP 实现同一局域网内 P2P 实时聊天与文件传输（每个实例同时作为服务端和客户端）。
 
@@ -220,7 +222,7 @@ Python 跨平台桌面应用，基于 TCP 实现同一局域网内 P2P 实时聊
 
 ## 九、IP 范围生成器
 
-<kbd>F4</kbd> 弹出（v2.9 新增）。
+ <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>F4</kbd> 弹出（v2.9 新增）。
 
 - **自动检测本机网络：** 识别主接口、私有 IP、链路本地地址、公网 IP，显示子网掩码及可用范围
 - **支持格式：** CIDR (`192.168.1.0/24`)、范围 (`1-254` / `1.1-1.254`)、IP+掩码
@@ -232,21 +234,28 @@ Python 跨平台桌面应用，基于 TCP 实现同一局域网内 P2P 实时聊
 
 ## 十、clean 工具
 
-<kbd>F5</kbd> 弹出 — 批量清除空文件夹和 Mac 隐藏文件。
+ <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>F5</kbd> 弹出 — 批量清除空文件夹和 Mac 隐藏文件。
 
 ---
 
 ## 十一、冻结管理器
 
-<kbd>F6</kbd> 弹出（v2.10 新增）— 选择进程冻结或恢复。
+ <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>F6</kbd> 弹出（v2.10 新增）— 选择进程冻结或恢复。
 
 ---
 
 ## 十二、多线程下载器
 
-<kbd>F7</kbd> 弹出（v2.14 新增）— 自定义线程数，某些情况下比 IDM 还快。
+ <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>F7</kbd> 弹出（v2.14 新增）— 自定义线程数，某些情况下比 IDM 还快。
 
 ---
+
+## 十三、UDP重放攻击工具
+
+ <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>k</kbd>或<kbd>h</kbd>`后台`*弹出*。详情见 [![GitHub Repo](https://img.shields.io/badge/GitHub-JIYU_hacker_UDP-181717?logo=github)](https://github.com/AmedNet/JIYU_hacker_UDP)
+
+---
+
 <div align="center">
 
 ## 🏅 特别鸣谢
