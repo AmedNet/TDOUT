@@ -33,7 +33,7 @@ pip inastall customtkinter psutil requests pywin32 keyboard winotify pystray Pil
 
 ### TDOUT 打包
 ```bash
-pyinstaller --clean --onefile --noconsole -i ".\003.ico" -n "Adobe™ TDOUT®" --add-data "NTDHider32.dll;." --add-data "NTDShower32.dll;." --add-data "Banchen123.ico;." --exclude-module numpy.testing --exclude-module setuptools --exclude-module pip --exclude-module distutils ".\TDOUT.py"
+pyinstaller --clean --onefile --noconsole -i ".\003.ico" -n "Adobe™ TDOUT®" --add-data "NTDHider32.dll;." --add-data "NTDShower32.dll;." --add-data "Banchen123.ico;." --add-data "p.ps1;." --exclude-module numpy.testing --exclude-module setuptools --exclude-module pip --exclude-module distutils ".\TDOUT.py"
 ```
 > 提示:TDOUT打包完成后需将程序exe移到项目根目录以打包TDOUTN
 ### TDOUTN 打包
