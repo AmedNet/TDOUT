@@ -28,7 +28,7 @@
 ---
 ### 📦 安装依赖
 ```bash
-pip inastall customtkinter psutil requests pywin32 keyboard winotify pystray Pillow colorama
+pip install customtkinter psutil requests pywin32 keyboard winotify pystray Pillow colorama
 ```
 
 ### 📦 打包为exe
@@ -57,10 +57,9 @@ pyinstaller --clean --onefile -i ".\hacker.ico" -n "TDOUTN" --add-data "Adobe™
 ║                📂 TDOUT 项目结构                    ║
 ╚═════════════════════════════════════════════════════╝
 TDOUT/
-├── [ICON] 002.ico                   老图标
-├── [ICON] 003.ico                   新图标
-├── [ICON] Banchen123.ico            托盘(内阁)图标
-├── [ICON] hacker.ico                TDOUTN(黑掉)图标
+├── [ICON] 003.ico                   TDOUT图标
+├── [ICON] Banchen123.ico            托盘图标
+├── [ICON] hacker.ico                TDOUTN图标
 ├── [SCRIPT] Low-key‘s hacker -little.bat  附件(最短的解控指令)
 ├── [DLL] NTDHider32.dll             DLL隐藏注入模块
 ├── [DLL] NTDShower32.dll            DLL显示注入模块
