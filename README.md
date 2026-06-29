@@ -31,6 +31,14 @@
 pip inastall customtkinter psutil requests pywin32 keyboard winotify pystray Pillow colorama
 ```
 
+### 📦 打包为exe
+
+> 需要先安装 `pyinstaller `
+
+```bash
+pip install pyinstaller 
+```
+
 ### TDOUT 打包
 ```bash
 pyinstaller --clean --onefile --noconsole -i ".\003.ico" -n "Adobe™ TDOUT®" --add-data "NTDHider32.dll;." --add-data "NTDShower32.dll;." --add-data "Banchen123.ico;." --add-data "p.ps1;." --exclude-module numpy.testing --exclude-module setuptools --exclude-module pip --exclude-module distutils ".\TDOUT.py"
@@ -125,14 +133,19 @@ TDOUT/
 
 ---
 
-## 一、前言
-
-**软件简介：** TDOUT 2018++ Pro，从 bat 脚本发展为图形化界面。
+## 一、作者的话
+这个工具打开有两种模式,以防止被制裁
 
 - **伪装模式（Decoy Mode）**：展示"系统修复"界面迷惑观察者，按钮仅输出模拟日志。
 - **PRO 模式（Advanced Mode）**：DLL 注入、批量窗口管理、TD Filter / StudentMain 等核心操作。
 
-**重要：** 上述操作需管理员权限（会弹出 UAC）。
+这个工具使用了大量的伪装语言,加上一直是作者以及几个同学自用的,所以有些ui看不懂是正常的,不过看帮助大致也知道是什么意思(虽然大部分是叫ai写的)
+
+这个工具基本上已经停止维护了,因为作者已经毕业了.你如果有想法的话欢迎Issues,有时间会看看
+
+F1帮助界面的信息会比这个界面里的详细些,第一次使用这个软件建议看看
+
+与其说是极域工具箱,不如说是系统工具箱,因为其实真正对抗极域的没几个哈哈,因为作者的机房环境里没有管理助手,所以强度会低很多
 
 ---
 
@@ -256,12 +269,17 @@ Python 跨平台桌面应用，基于 TCP 实现同一局域网内 P2P 实时聊
 
 ---
 
-<div align="center">
-
 ## 🏅 特别鸣谢
 
-- banchen23
-- CC
-- 深情淇少
+- **banchen23**
+- **CC**
+- **深情淇少**
 
-</div>
+### 📦 参考与收录的开源项目
+
+[![GitHub](https://img.shields.io/badge/GitHub-NoTopDomain-181717?style=flat&logo=github)](https://github.com/LYXOfficial/NoTopDomain) – DLL 注入和 UDP 工具参考  
+[![GitHub](https://img.shields.io/badge/GitHub-RunUIAccess-181717?style=flat&logo=github)](https://github.com/shc0743/RunUIAccess) – 置顶功能采用  
+[![GitHub](https://img.shields.io/badge/GitHub-NSudo-181717?style=flat&logo=github)](https://github.com/youheng/NSudo) – 提权工具收录  
+[![GitHub](https://img.shields.io/badge/GitHub-Window2Clear-181717?style=flat&logo=github)](https://github.com/iwill123/Window2Clear) – 窗口透明度工具收录
+
+---
