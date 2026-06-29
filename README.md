@@ -68,7 +68,7 @@ TDOUT/
 ├── [PY] TDOUTN.py                   TDOUT启动器
 ├── [DLL] uiaccess.dll               权威置顶模块
 ├── [TXT] 打包命令.txt
-├── [PS1] p.ps1       反弹shell依赖
+├── [PS1] p.ps1                      反弹shell依赖
 │
 ├─ 🛡️ combat  ── 权威小工具
 │  ├── [PY] Hook.py                  真得好好控制一下极域了
