@@ -174,7 +174,7 @@ F1帮助界面的信息会比这个界面里的详细些,第一次使用这个�
 ### 核心驱动和进程清理
 
 - **💥 TD FILTER 驱动卸载：** 解网解U盘
-- **🧹 STUDENTMAIN 进程清理：** 强制终止 `StudentMain.exe` — <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd> + <kbd>K</kbd>（后台可用）
+- **🧹 STUDENTMAIN 进程清理：** 强制终止 `StudentMain.exe` — <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>Z</kbd>（后台可用）
 - **=] 部署与运行：** 已经废弃的功能
 - **✨ 高调模式：** 启动 5 个 `cmd.exe` 并运行 `dir /s` 直接感受低调的黑科
 
