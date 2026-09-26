@@ -7,7 +7,7 @@ TDOUT 2026 Pro   BY APOLI
 * 切换模式： Ctrl + Alt + L
 * 清除日志：ctrl + backspace
 * 隐藏&还原：alt + n (后台有效)
-* 杀死极域进程：ctrl + shift + z + k (后台有效)
+* 杀死极域进程：ctrl + alt + z(后台有效)
 * 快捷隐藏当前活动窗口：shift + alt + s (后台有效)
 * 打开此窗口：ctrl + alt + F1
 * 打开多功能工具箱：ctrl + alt + F2

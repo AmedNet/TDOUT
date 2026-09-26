@@ -62,6 +62,7 @@ TDOUT/
 ├── [ICON] hacker.ico                TDOUTN图标
 ├── [SCRIPT] Low-key‘s hacker -little.bat  附件(最短的解控指令)
 ├── [DLL] NTDHider32.dll             DLL隐藏注入模块
+├── [CPP] NTDHider32.cpp             DLL隐藏注入模块源码
 ├── [DLL] NTDShower32.dll            DLL显示注入模块
 ├── [DOC] README.md                  91
 ├── [PY] TDOUT.py                    TDOUT主程序
@@ -117,7 +118,7 @@ TDOUT/
 | <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>L</kbd> | 切换模式 |
 | <kbd>Ctrl</kbd> + <kbd>Backspace</kbd> | 清除日志 |
 | <kbd>Alt</kbd> + <kbd>N</kbd> | 隐藏 / 还原（后台有效） |
-| <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd> + <kbd>K</kbd> | 杀死极域进程（后台有效） |
+| <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>Z</kbd> | 杀死极域进程（后台有效） |
 | <kbd>Shift</kbd> + <kbd>Alt</kbd> + <kbd>S</kbd> | 隐藏当前活动窗口（后台有效） |
 | <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>h</kbd> | 黑客工具 |
 | <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>F1</kbd> | 打开帮助窗口 |

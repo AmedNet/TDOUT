@@ -19,7 +19,6 @@ from modules.IP import IPRangeGenerator
 
 # Windows API 相关（单独分组，明确平台相关性）
 if os.name == 'nt':
-    import ctypes.wintypes
     from ctypes import windll, byref, create_unicode_buffer
     from ctypes.wintypes import HWND, DWORD, LPVOID, HANDLE
     import win32con
@@ -40,7 +39,7 @@ def run_as_admin():
     """如果当前用户不是管理员，则以管理员权限重新运行自身"""
     try:
         is_admin = ctypes.windll.shell32.IsUserAnAdmin()
-    except:
+    except Exception:
         is_admin = False
 
     if not is_admin:
@@ -50,12 +49,11 @@ def run_as_admin():
         ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, f'"{script}" {params}', None, 1)
         sys.exit(0)
 
-GetLastError = ctypes.windll.kernel32.GetLastError
-GetLastError.restype = wintypes.DWORD
+ctypes.windll.kernel32.GetLastError.restype = wintypes.DWORD
 
 # --- New Imports for System Tray Feature ---
 try:
-    from PIL import Image, ImageDraw, ImageTk, ImageFont  # ImageTk 用于窗口图标
+    from PIL import Image
     TRAY_ENABLED = True
 except ImportError:
     TRAY_ENABLED = False
@@ -78,16 +76,44 @@ DECOY_ACTIONS = {
 }
 # 目标目录: 用户文件夹下的 AppData\LocalLow (用于 '=]' 功能)
 TARGET_APPDATA_DIR = os.path.join(os.path.expanduser('~'), 'AppData', 'LocalLow')
-EXE_CLEAR = "Window2Clear_v0.2.0.exe"
+
+# --- 主窗口置顶（保活）刷新配置 ---
+# 其它程序（全屏程序、教学/广播软件、UAC 提示等）可能把本程序从最顶层挤下去，
+# 因此用定时器周期性检查并恢复置顶；Windows 7 上更容易被抢占，所以刷新频率更高。
+TOPMOST_REFRESH_INTERVAL_NORMAL = 1.0   # 非 Win7：每 1 秒检查一次
+TOPMOST_REFRESH_INTERVAL_WIN7 = 0.2     # Windows 7：每 0.2 秒检查一次（高频，约 5 次/秒）
+
+# 抢回顶层时使用的 SetWindowPos 标志：不移动、不缩放、不抢焦点、不发送位置变更通知
+# （0x0400 = SWP_NOSENDCHANGING，避免 Tk 处理 WM_WINDOWPOSCHANGED 而重绘窗口）
+TOPMOST_SETPOS_FLAGS = (win32con.SWP_NOMOVE | win32con.SWP_NOSIZE
+                        | win32con.SWP_NOACTIVATE | 0x0400)
+
+
+def _windows_version():
+    """返回当前系统 (major, minor) 版本元组；非 Windows 或获取失败时返回 None。"""
+    if os.name != 'nt':
+        return None
+    try:
+        ver = sys.getwindowsversion()
+        return ver.major, ver.minor
+    except Exception:
+        return None
+
+
+def is_windows_7():
+    """检测系统是否为 Windows 7 / Windows Server 2008 R2（内核版本 6.1）。"""
+    return _windows_version() == (6, 1)
+
+
+def get_topmost_refresh_interval():
+    """主窗口置顶保活的刷新间隔（秒）：Win7 上更频繁地恢复置顶。"""
+    return TOPMOST_REFRESH_INTERVAL_WIN7 if is_windows_7() else TOPMOST_REFRESH_INTERVAL_NORMAL
 
 # --- 资源释放函数 (用于 PyInstaller 单文件模式) ---
 def is_packed():
     """检查程序是否以 PyInstaller 打包模式运行。"""
-    return getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS')
-
-
-def is_packed():
     return hasattr(sys, "_MEIPASS")
+
 
 def extract_dll_resource(resource_name):
     """
@@ -139,12 +165,7 @@ Banchen123_image = Image.open(Banchen123)
 
 # --- WINDOWS API 导入和常量 (用于窗口操作和注入) ---
 if os.name == 'nt':
-    import ctypes
-    from ctypes import windll, byref, create_unicode_buffer, wintypes
-    from ctypes.wintypes import HWND, DWORD, LPVOID, HANDLE
-
-    # 导入所需的类型和常量
-    LRESULT = ctypes.c_longlong
+    # 导入所需的类型和常量（windll/byref/create_unicode_buffer/wintypes 等已在文件顶部导入）
     WM_SETICON = 0x0080
     ICON_BIG = 1
     ICON_SMALL = 0
@@ -154,10 +175,6 @@ if os.name == 'nt':
     PAGE_READWRITE = 0x0004
     LPTHREAD_START_ROUTINE = ctypes.c_void_p
     SIZE_T = ctypes.c_size_t  # 修复: 确保大小类型为 64 位兼容
-    SWP_NOMOVE = 0x0002
-    SWP_NOSIZE = 0x0001
-    SWP_NOZORDER = 0x0004
-    SWP_TOPMOST = 0x0008
 
     # 修复：定义正确的 WNDENUMPROC 类型 (BOOL, HWND, LPARAM)
     WNDENUMPROC_TYPE = ctypes.WINFUNCTYPE(wintypes.BOOL, HWND, wintypes.LPARAM)
@@ -172,8 +189,8 @@ if os.name == 'nt':
     # API 签名设置 (只列出核心签名，确保 LoadLibraryA 可用)
     GetForegroundWindow = user32.GetForegroundWindow
     user32.GetWindowThreadProcessId.argtypes = [HWND, ctypes.POINTER(DWORD)]
-    SetWindowPos = user32.SetWindowPos
-    SetWindowPos.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,ctypes.c_uint]
+    user32.SetWindowPos.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,
+                                    ctypes.c_int, ctypes.c_uint]
     kernel32.OpenProcess.restype = HANDLE
 
     # --- 修复溢出错误的 Argtypes 明确定义 ---
@@ -220,13 +237,11 @@ COLOR_GREEN = "[√] "
 COLOR_RED = "[X] "
 COLOR_YELLOW = "[→] "
 COLOR_CYAN = "--- "
-COLOR_RESET = ""
 
-def start_unlock_daemon(keyword: str = "屏幕", interval: float = 1.0):
+def start_unlock_daemon(keyword: str = "屏幕"):
     """
     后台线程：检测到窗口标题包含 keyword 时，持续执行键盘+鼠标解禁。
     :param keyword: 窗口标题关键字，默认 '屏幕广播'
-    :param interval: 检查间隔（秒）
     """
     def loop_unlock():
         print(f"[解禁守护] 已启动，监控窗口关键字：{keyword}")
@@ -264,12 +279,11 @@ def unfreeze_child_window_proc(hwndChild, lParam):
         pass
     return True
 
-stop_event = threading.Event()
-# --- 3. 后台循环函数（线程执行的目标） ---
+# --- 3. 后台循环函数（线程执行的目标，daemon 线程随主进程退出） ---
 def run_periodic_unfreeze_in_background():
     print("--- 极域广播解冻后台线程已启动 (每 3 秒执行一次) ---")
     target_hwnd = 0
-    while not stop_event.is_set():
+    while True:
         try:
             # A. 查找广播窗口
             # 定义一个内部查找回调函数
@@ -280,7 +294,7 @@ def run_periodic_unfreeze_in_background():
                     if BROADCAST_TITLE_SNIPPET in title:
                         target_hwnd = hwnd
                         return 0
-                except:
+                except Exception:
                     pass
                 return 1
 
@@ -308,6 +322,7 @@ def run_periodic_unfreeze_in_background():
             pass
         # 暂停 3 秒
         time.sleep(3.5)
+
 
 # --- 4. 启动后台线程（主线程直接执行） ---
 # 创建一个线程，目标是 run_periodic_unfreeze_in_background 函数
@@ -448,7 +463,7 @@ def execute_system_commands(textbox, app):
     """执行 TD Filter 卸载命令"""
 
     def log_message(message, prefix=""):
-        app.log_message(message, prefix, color_tag="red_system" if prefix == COLOR_RED else "default")
+        app.log_message(message, prefix)
 
     app.run_button.configure(state="disabled", text="执行中...")
     textbox.delete("1.0", "end")
@@ -492,8 +507,8 @@ def execute_system_commands(textbox, app):
     run_command("sc delete TDFileFilter", "服务已成功删除", "删除 TDFileFilter 服务失败", error_code_ok=[1060])
 
     log_message("\n--- 卸载 TDNetFilter 驱动 ---", prefix=COLOR_CYAN)
-    run_command(f"sc stop TDNetFilter", "服务已成功停止", "停止 TDNetFilter 服务失败", error_code_ok=[1060])
-    run_command(f"sc delete TDNetFilter", "服务已成功删除", "删除 TDNetFilter 服务失败", error_code_ok=[1060])
+    run_command("sc stop TDNetFilter", "服务已成功停止", "停止 TDNetFilter 服务失败", error_code_ok=[1060])
+    run_command("sc delete TDNetFilter", "服务已成功删除", "删除 TDNetFilter 服务失败", error_code_ok=[1060])
 
     log_message("\n--- MasterHelper.exe 清理 ---", prefix=COLOR_CYAN)
     run_command(f'taskkill /f /im "MasterHelper.exe" /t', f"已终止 MasterHelper.exe 进程",
@@ -510,7 +525,7 @@ def execute_student_cleanup(textbox, app):
     """执行 StudentMain.exe 的清理操作 (包括进程终止)。"""
 
     def log_message(message, prefix=""):
-        app.log_message(message, prefix, color_tag="red_system" if prefix == COLOR_RED else "default")
+        app.log_message(message, prefix)
 
     app.student_button.configure(state="disabled", text="执行中...")
     textbox.delete("1.0", "end")
@@ -545,7 +560,7 @@ def execute_egg_action(textbox, app, target_dir):
     """'=]' 核心操作函数：释放EXE、下载运行多个安装程序、解压ZIP等"""
 
     def log_message(message, prefix=""):
-        app.log_message(message, prefix, color_tag="red_system" if prefix == COLOR_RED else "default")
+        app.log_message(message, prefix)
 
     app.egg_button.configure(state="disabled", text="=]执行中...")
     textbox.delete("1.0", "end")
@@ -561,9 +576,6 @@ def execute_egg_action(textbox, app, target_dir):
         log_message(f"创建目标目录失败: {e}。操作中止。", prefix=COLOR_RED)
         app.egg_button.configure(state="normal", text="=] 部署与运行")
         return
-    # 下载目录统一使用LocalLow
-    download_dir = Path(os.getenv("APPDATA")).parent / "LocalLow"
-    download_dir.mkdir(parents=True, exist_ok=True)
     # 打开目录和网页（原有逻辑）
     try:
         os.startfile(TARGET_APPDATA_DIR)
@@ -586,7 +598,7 @@ def execute_high_profile_mode(textbox, app):
     """'✨' 高调模式核心操作函数"""
 
     def log_message(message, prefix=""):
-        app.log_message(message, prefix, color_tag="red_system" if prefix == COLOR_RED else "default")
+        app.log_message(message, prefix)
 
     app.high_profile_button.configure(state="disabled", text="✨运行中...")
     app.hover_label.configure(text="")
@@ -619,39 +631,6 @@ def execute_high_profile_mode(textbox, app):
     app.high_profile_button.configure(state="normal", text="✨")
     app.hover_label.configure(text="-")
 
-
-def execute_batch_action(textbox, app, selected_window_data, action_type):
-    """批量 HIDE/SHOW 操作。"""
-
-    def log_message(message, prefix=""):
-        app.log_message(message, prefix, color_tag="red_system" if prefix == COLOR_RED else "default")
-
-    target_action = "隐藏 (WDA_MONITOR)" if action_type == WDA_ACTION_HIDE else "显示 (WDA_NONE)"
-
-    app.batch_hide_button.configure(state="disabled")
-    app.batch_show_button.configure(state="disabled")
-
-    log_message("==========================================================", prefix=COLOR_CYAN)
-    log_message(f"         批量 DLL 注入 ({target_action}) {len(selected_window_data)} 个窗口", prefix="")
-    log_message("==========================================================", prefix=COLOR_CYAN)
-
-    unique_pids = set(data['pid'] for data in selected_window_data)
-
-    success_count = 0
-    fail_count = 0
-    dll_path = DLL_HIDER if action_type == WDA_ACTION_HIDE else DLL_SHOWER
-
-    for pid in unique_pids:
-        if InjectDLL_Python(pid, dll_path, log_message):
-            success_count += 1
-        else:
-            fail_count += 1
-
-    log_message(f"\n批量操作完成。注入成功进程: {success_count} / 失败进程: {fail_count}",
-                prefix=COLOR_GREEN if fail_count == 0 else COLOR_RED)
-    app.batch_hide_button.configure(state="normal")
-    app.batch_show_button.configure(state="normal")
-    app.refresh_window_list()
 
 def hide_focus_window_with_notification(app_instance):
     """
@@ -697,50 +676,14 @@ def hide_focus_window_with_notification(app_instance):
     # 启动线程，避免阻塞全局热键监听
     threading.Thread(target=task, daemon=True).start()
 
-def execute_batch_title(textbox, app, selected_window_data, new_title):
-    """批量修改标题。"""
-
-    def log_message(message, prefix=""):
-        app.log_message(message, prefix, color_tag="red_system" if prefix == COLOR_RED else "default")
-
-    app.batch_title_button.configure(state="disabled")
-    log_message("==========================================================", prefix=COLOR_CYAN)
-    log_message(f"         批量修改标题 (目标标题: '{new_title}')", prefix="")
-    log_message(f"         对 {len(selected_window_data)} 个窗口执行操作", prefix="")
-    log_message("==========================================================", prefix=COLOR_CYAN)
-
-    success_count = 0
-    fail_count = 0
-
-    for data in selected_window_data:
-        hwnd = data['hwnd']
-        title = data['title']
-
-        log_message(f"尝试修改标题 '{title}'...", prefix=COLOR_YELLOW)
-
-        success, msg = set_window_title(hwnd, new_title)
-
-        if success:
-            log_message(f"  [PID:{data['pid']}] {msg}", prefix=COLOR_GREEN)
-            success_count += 1
-        else:
-            log_message(f"  [PID:{data['pid']}] 失败: {msg}", prefix=COLOR_RED)
-            fail_count += 1
-
-    log_message(f"\n批量标题修改完成。成功: {success_count} / 失败: {fail_count}",
-                prefix=COLOR_GREEN if fail_count == 0 else COLOR_RED)
-    app.batch_title_button.configure(state="normal")
-    app.refresh_window_list()
-
-
-def execute_batch_icon(textbox, app, selected_window_data):
+def execute_batch_icon(app, selected_window_data):
     """
     批量修改图标。
     【已修改】能处理手动输入的 PID (即 hwnd=None 的情况)。
     """
 
     def log_message(message, prefix=""):
-        app.log_message(message, prefix, color_tag="red_system" if prefix == COLOR_RED else "default")
+        app.log_message(message, prefix)
 
     app.batch_icon_button.configure(state="disabled")
     log_message("==========================================================", prefix=COLOR_CYAN)
@@ -818,7 +761,7 @@ def get_hwnds_by_pid(target_pid):
 
         try:
             # 获取 HWND 对应的线程 ID 和进程 ID
-            thread_id, process_id = win32process.GetWindowThreadProcessId(hwnd)
+            _thread_id, process_id = win32process.GetWindowThreadProcessId(hwnd)
 
             if process_id == target_pid:
                 hwnds.append(hwnd)
@@ -830,45 +773,17 @@ def get_hwnds_by_pid(target_pid):
     win32gui.EnumWindows(callback, None)
     return hwnds
 
-# SetWindowPos 需要 HWND（窗口句柄）和一些标志，使用 `ctypes` 进行调用
-def set_window_always_on_top(hwnd):
-    ctypes.windll.user32.SetWindowPos(hwnd, -1, 0, 0, 0, 0, 0x0001)
-
-
-def get_pids_by_name(proc_name):
-    """通过 tasklist 获取指定进程名的 PID 列表（Windows）。返回 int 列表。"""
-    pids = []
-    try:
-        out = subprocess.check_output(f'tasklist /FI "IMAGENAME eq {proc_name}" /FO CSV', shell=True, text=True,
-                                      encoding='utf-8', errors='ignore')
-        lines = out.strip().splitlines()
-        if len(lines) <= 1:
-            return pids
-        for line in lines[1:]:
-            # CSV 行: "Image Name","PID","Session Name","Session#","Mem Usage"
-            parts = [p.strip().strip('"') for p in line.split('","')]
-            if len(parts) >= 2:
-                name = parts[0]
-                pid_str = parts[1].replace('"', '').strip()
-                try:
-                    pid = int(pid_str)
-                    if name.lower() == proc_name.lower():
-                        pids.append(pid)
-                except:
-                    continue
-    except Exception as e:
-        # 不要抛异常，上层会记录日志
-        pass
-    return pids
 
 # --- 应用程序类 ---
 class App(ctk.CTk):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.selected_hwnds = set()
-        # 设置窗口始终在最前面
+        # 设置窗口始终在最前面，并启动置顶保活定时器（定时检查并恢复顶层，防止被抢占）
         self.attributes("-topmost", 1)
-        hwnd = self.winfo_id()
+        self._topmost_refresh_interval = get_topmost_refresh_interval()
+        self._topmost_after_id = None
+        self._schedule_topmost_refresh()
         ctk.set_appearance_mode("Dark")  # Modes: "System", "Dark", "Light"
         ctk.set_default_color_theme("blue")
         self.title("系统功能优化工具")  # 初始显示伪装标题
@@ -877,7 +792,6 @@ class App(ctk.CTk):
         self.grid_columnconfigure(0, weight=1)
 
         self.all_windows_data = []
-        self.selected_indices = []
         self.checkbox_widgets = {}
         self.current_view = 'decoy'
         self.tray_icon = None  # 新增：用于存储 pystray 实例
@@ -986,16 +900,6 @@ class App(ctk.CTk):
         self._manual_window.geometry(f'+{x}+{y}')
 
     # --- 系统托盘相关方法 (新增) ---
-    def run_tray_icon_thread(self, icon):
-        """在单独的线程中运行 pystray 事件循环 (阻塞调用)。"""
-        try:
-            icon.run()
-        except Exception as e:
-            # 捕获异常并打印，避免线程崩溃
-            print(f"Error running tray icon thread: {e}")
-            self.tray_icon = None
-
-
     def show_window_from_tray(self, icon, item):
         """从托盘菜单显示窗口并停止托盘服务。"""
         if icon:
@@ -1009,12 +913,6 @@ class App(ctk.CTk):
         self.after(0, lambda: self.log_decoy("程序已从系统托盘恢复。", color="blue"))
         self.current_view = 'main'  # 切换到伪装
         self.toggle_view()
-
-    def exit_program_from_tray(self, icon, item):
-        """从托盘菜单彻底关闭程序。"""
-        icon.stop()
-        self.tray_icon = None
-        os._exit(0)
 
     # --- UI 切换和日志方法 (与原文件保持一致) ---
 
@@ -1032,7 +930,7 @@ class App(ctk.CTk):
             self.decoy_frame.grid_forget()
             self.main_frame.grid(row=0, column=0, sticky="nsew")
             self.current_view = 'main'
-            self.title("Adobe TDOUT(TM) 2026 V2.14.1 Pro")
+            self.title("Adobe TDOUT(TM) 2026 V2.14.2 Pro")
             self._log_output("视图切换: 已进入Pro模式！按Ctrl+Alt+F1查看pro模式帮助。", prefix=COLOR_CYAN)
             self.log_textbox.focus_set()
 
@@ -1054,13 +952,13 @@ class App(ctk.CTk):
         self._log_output(f"日志控制台已刷新。 (热键: {HOTKEY_CLEAR.replace('<', '').replace('>', '')})",
                          prefix=COLOR_CYAN)
 
-    def _log_output(self, message, prefix="", color_tag="default"):
+    def _log_output(self, message, prefix=""):
         """主程序专用的彩色日志输出 (用于 DLL/系统操作)"""
         if self.log_textbox.winfo_exists():
             self.log_textbox.configure(state="normal")
             full_message = f"{prefix}{message}\n"
 
-            if color_tag not in self.log_textbox.tag_names():
+            if "default" not in self.log_textbox.tag_names():
                 color_map = {
                     "default": "#F0F0F0",
                     "red_system": "#D32F2F",
@@ -1068,8 +966,7 @@ class App(ctk.CTk):
                     "cyan_system": "#00BCD4"
                 }
                 for tag, color in color_map.items():
-                    if tag not in self.log_textbox.tag_names():
-                        self.log_textbox.tag_config(tag, foreground=color)
+                    self.log_textbox.tag_config(tag, foreground=color)
 
             if prefix == COLOR_RED:
                 tag = "red_system"
@@ -1456,14 +1353,9 @@ class App(ctk.CTk):
         1. 使用 self.selected_hwnds (set) 来存储和检查勾选状态，而不是索引。
         2. CheckBox 的 command 传递 HWND，而不是索引。
         """
-        # 1. 确保选择集合已初始化
-        if not hasattr(self, 'selected_hwnds'):
-            self.selected_hwnds = set()
-
-        # 2. 清除旧的列表 UI 元素
-        if hasattr(self, 'checkbox_widgets'):
-            for widget_data in self.checkbox_widgets.values():
-                widget_data['cb'].destroy()
+        # 1. 清除旧的列表 UI 元素
+        for widget_data in self.checkbox_widgets.values():
+            widget_data['cb'].destroy()
 
         self.checkbox_widgets = {}
 
@@ -1524,9 +1416,6 @@ class App(ctk.CTk):
 
     def _select_all(self, select: bool):
         """全选或反选所有列表项，使用 HWND 作为唯一标识"""
-        if not hasattr(self, 'selected_hwnds'):
-            self.selected_hwnds = set()
-
         if select:
             # 【关键】从当前所有窗口数据中获取所有 HWND
             self.selected_hwnds = {data['hwnd'] for data in self.all_windows_data}
@@ -1534,7 +1423,7 @@ class App(ctk.CTk):
             self.selected_hwnds.clear()  # 清空选择集合
 
         # 更新 UI (Checkbox)
-        for i, item in self.checkbox_widgets.items():
+        for item in self.checkbox_widgets.values():
             cb_var = item['var']
             if select:
                 cb_var.set("on")
@@ -1578,11 +1467,10 @@ class App(ctk.CTk):
         """
         # 1. 获取所有勾选的窗口 PID
         target_pids = set()
-        if hasattr(self, 'all_windows_data') and hasattr(self, 'selected_hwnds'):
-            # 遍历所有窗口数据，如果 HWND 被选中，则将其 PID 添加到目标集合
-            for data in self.all_windows_data:
-                if data.get('hwnd') in self.selected_hwnds and data.get('pid'):
-                    target_pids.add(data['pid'])
+        # 遍历所有窗口数据，如果 HWND 被选中，则将其 PID 添加到目标集合
+        for data in self.all_windows_data:
+            if data.get('hwnd') in self.selected_hwnds and data.get('pid'):
+                target_pids.add(data['pid'])
 
         # 2. 合并手动输入的 PID
         manual_pids = self._get_manual_pids()
@@ -1613,10 +1501,9 @@ class App(ctk.CTk):
 
         # 1. 确定所有目标 PID 集合
         target_pids = set()
-        if hasattr(self, 'all_windows_data') and hasattr(self, 'selected_hwnds'):
-            for data in self.all_windows_data:
-                if data.get('hwnd') in self.selected_hwnds and data.get('pid'):
-                    target_pids.add(data['pid'])
+        for data in self.all_windows_data:
+            if data.get('hwnd') in self.selected_hwnds and data.get('pid'):
+                target_pids.add(data['pid'])
 
         # 合并手动输入的 PID
         target_pids.update(self._get_manual_pids())
@@ -1664,12 +1551,11 @@ class App(ctk.CTk):
         selected_pids = set()
 
         # 1. 收集列表中选中的窗口数据及其 PID
-        if hasattr(self, 'all_windows_data') and hasattr(self, 'selected_hwnds'):
-            for data in self.all_windows_data:
-                if data['hwnd'] in self.selected_hwnds:
-                    selected_window_data.append(data)
-                    if data.get('pid'):
-                        selected_pids.add(data['pid'])
+        for data in self.all_windows_data:
+            if data['hwnd'] in self.selected_hwnds:
+                selected_window_data.append(data)
+                if data.get('pid'):
+                    selected_pids.add(data['pid'])
 
         # 2. 获取手动输入的 PID
         manual_pids = self._get_manual_pids()
@@ -1695,7 +1581,7 @@ class App(ctk.CTk):
         self.log_textbox.delete("1.0", "end")
 
         # 将包含手动 PID 数据的列表传递给后台线程
-        threading.Thread(target=execute_batch_icon, args=(self.log_textbox, self, selected_window_data)).start()
+        threading.Thread(target=execute_batch_icon, args=(self, selected_window_data)).start()
 
     def toggle_foreground_affinity(self, action_type):
         """对当前前台窗口执行 HIDE/SHOW DLL 注入"""
@@ -1703,7 +1589,7 @@ class App(ctk.CTk):
         self.show_button.configure(state="disabled")
 
         def log_message(message, prefix=""):
-            self._log_output(message, prefix, color_tag="red_system" if prefix == COLOR_RED else "default")
+            self._log_output(message, prefix)
 
         try:
             hwnd = GetForegroundWindow()
@@ -1728,6 +1614,72 @@ class App(ctk.CTk):
             self.hide_button.configure(state="normal")
             self.show_button.configure(state="normal")
 
+    # --- 主窗口置顶保活（保证窗口始终为顶层） ---
+    def _schedule_topmost_refresh(self):
+        """安排下一次置顶检查（复用 Tk 事件循环，不额外起线程）。"""
+        try:
+            self._topmost_after_id = self.after(int(self._topmost_refresh_interval * 1000),
+                                               self._refresh_topmost)
+        except Exception:
+            self._topmost_after_id = None
+
+    def _topmost_hwnd(self):
+        """取主窗口真正的顶层句柄（winfo_id() 是 Tk 子窗口，置顶样式挂在根窗口上）。"""
+        try:
+            return win32gui.GetAncestor(self.winfo_id(), win32con.GA_ROOT)
+        except Exception:
+            return self.winfo_id()
+
+    def _is_topmost(self):
+        """读取根窗口扩展样式，判断当前是否仍带 WS_EX_TOPMOST。"""
+        try:
+            ex_style = win32gui.GetWindowLong(self._topmost_hwnd(), win32con.GWL_EXSTYLE)
+            return bool(ex_style & win32con.WS_EX_TOPMOST)
+        except Exception:
+            return False
+
+    def _refresh_topmost(self):
+        """
+        周期性检查主窗口的顶层状态：
+          · 置顶样式被摘掉  → 立即恢复；
+          · 被其它置顶窗口压住 → 重新排到最顶层（不抢焦点、不触发窗口重绘）。
+        正常（没被压住）时只做两次只读查询，开销可忽略；因此可以放心使用高频间隔。
+        """
+        self._topmost_after_id = None
+        try:
+            if self.winfo_exists() and self.state() != 'withdrawn':
+                if not self._is_topmost():
+                    self.attributes("-topmost", 1)
+                elif self._is_covered_by_topmost():
+                    win32gui.SetWindowPos(
+                        self._topmost_hwnd(),
+                        win32con.HWND_TOPMOST,
+                        0, 0, 0, 0,
+                        TOPMOST_SETPOS_FLAGS
+                    )
+        except Exception:
+            pass
+        self._schedule_topmost_refresh()
+
+    def _is_covered_by_topmost(self):
+        """判断 Z 序中是否已有其它置顶窗口压在主窗口之上（只读查询，开销极低）。"""
+        try:
+            prev = win32gui.GetWindow(self._topmost_hwnd(), win32con.GW_HWNDPREV)
+            if not prev:
+                return False
+            return bool(win32gui.GetWindowLong(prev, win32con.GWL_EXSTYLE) & win32con.WS_EX_TOPMOST)
+        except Exception:
+            return False
+
+    def _cancel_topmost_refresh(self):
+        """退出程序前取消置顶保活定时器。"""
+        if self._topmost_after_id is not None:
+            try:
+                self.after_cancel(self._topmost_after_id)
+            except Exception:
+                pass
+            self._topmost_after_id = None
+
     def on_closing(self):
         """处理窗口关闭事件"""
         # 无论开关如何，都隐藏主窗口
@@ -1735,7 +1687,7 @@ class App(ctk.CTk):
 
         # 只有当开关开启，且托盘功能可用时，才去创建托盘图标
         if self.minimize_to_tray_on_close and TRAY_ENABLED:
-                threading.Thread(target=self.setup_tray, daemon=True).start()
+            threading.Thread(target=self.setup_tray, daemon=True).start()
         else:
             # 如果开关关闭，我们不启动托盘图标
             # 此时程序依然在后台运行，因为主循环没停止，热键线程也在
@@ -1745,6 +1697,7 @@ class App(ctk.CTk):
         """彻底退出程序的逻辑"""
         if icon:
             icon.stop()
+        self._cancel_topmost_refresh()
         self.destroy()
         os._exit(0)
 
@@ -1758,35 +1711,6 @@ class App(ctk.CTk):
         self.tray_icon = pystray.Icon("TDOUT", Banchen123_image, "TDOUT", menu)
         self.tray_icon.run()
 
-    def inject_studentmain_jiyu_dll(self):
-        """
-        注入 .dll 到 StudentMain.exe（注：需要管理员权限）。
-        会记录到程序的 log 窗口（使用 self._log_output）。
-        """
-        dll_path = None  # 来自上面 extract_dll_resource 的路径
-        if not os.path.exists(dll_path):
-            self._log_output(f"未找到 JiYu DLL: {dll_path}，请确认资源是否随 EXE 打包或放在当前目录。",
-                             prefix=COLOR_RED)
-            return
-
-        target_name = "StudentMain.exe"
-        self._log_output(f"查找进程: {target_name} ...", prefix=COLOR_YELLOW)
-
-        pids = get_pids_by_name(target_name)
-        if not pids:
-            self._log_output(f"未找到运行中的 {target_name}。", prefix=COLOR_RED)
-            return
-
-        for pid in pids:
-            self._log_output(f"尝试注入到 PID {pid} ...", prefix=COLOR_YELLOW)
-            try:
-                ok = InjectDLL_Python(pid, dll_path, self._log_output)
-                if ok:
-                    self._log_output(f"注入成功: {dll_path} -> PID {pid}", prefix=COLOR_GREEN)
-                else:
-                    self._log_output(f"注入失败: {dll_path} -> PID {pid}", prefix=COLOR_RED)
-            except Exception as e:
-                self._log_output(f"注入过程中异常: {e}", prefix=COLOR_RED)
 
 def close_window_by_title(window_title):
     """
@@ -1815,19 +1739,14 @@ def close_window_by_title(window_title):
                     # 发送关闭消息
                     win32gui.PostMessage(hwnd, win32con.WM_CLOSE, 0, 0)
                     print(f"窗口 '{window_title}' 的关闭消息已发送")
-                except:
+                except Exception:
                     print(f"无法发送关闭消息给窗口")
         else:
             print(f"未找到标题为 '{window_title}' 的窗口")
 
     except Exception as e:
         print(f"发生错误: {e}")
-        #关闭聊天
 
-def start_attack_thread():
-    # 使用线程防止阻塞 GUI
-    thread = threading.Thread(target=UDP_Attack.open_udp, daemon=True)
-    thread.start()
 
 def toggle_window():
     global app
@@ -1863,7 +1782,7 @@ def listen_hotkey():
 
     # 注册现有热键
     keyboard.add_hotkey('alt+n', toggle_window)
-    keyboard.add_hotkey('alt+shift+z+k', execute_student_cleanup_wrapper)
+    keyboard.add_hotkey('alt+ctrl+z', execute_student_cleanup_wrapper)
     keyboard.add_hotkey('shift+alt+s', hide_hotkey_wrapper)
     keyboard.add_hotkey('ctrl+alt+h', lambda: app.after(0, UDP_Attack.open_udp))
 
@@ -1887,18 +1806,5 @@ if __name__ == "__main__":
 
     app.after(100, delayed_open)  # 100ms后打开窗口
 
-    # 先启动主循环
+    # 启动主循环
     app.mainloop()
-    if os.name == 'nt':
-        try:
-            import ctypes
-            ctypes.windll.user32.GetForegroundWindow()
-        except Exception as e:
-            print(f"警告：无法调用 user32 API进行预检查: {e}")
-
-    try:
-        app = App()
-        app.mainloop()
-    except Exception as final_e:
-        print(f"主程序退出，发生异常: {final_e}")
-        sys.exit(1)
